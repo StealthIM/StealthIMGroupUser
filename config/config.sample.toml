@@ -1,0 +1,19 @@
+[grpc]
+host = "127.0.0.1" # GRPC地址
+port = 50058       # GRPC监听端口
+log = false        # 启用日志，调试功能，上线建议关闭
+
+[dbgateway]
+host = "127.0.0.1"
+port = 50051
+conn_num = 5
+sql_timeout = 5000 # 单位：ms
+
+[user]
+host = "127.0.0.1"
+port = 50055
+conn_num = 5
+sql_timeout = 5000 # 单位：ms
+
+[security]
+password_salt = "<stim_you_salt>"
