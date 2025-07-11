@@ -8,6 +8,7 @@ import (
 	pb_gtw "StealthIMGroupUser/StealthIM.DBGateway"
 	pb "StealthIMGroupUser/StealthIM.GroupUser"
 	"StealthIMGroupUser/config"
+	"StealthIMGroupUser/errorcode"
 	"StealthIMGroupUser/gateway"
 	"StealthIMGroupUser/user"
 	"crypto/sha256"
@@ -22,11 +23,11 @@ func (s *server) GetGroupsByUID(ctx context.Context, req *pb.GetGroupsByUIDReque
 
 	cacheObj := &pb.GetGroupsByUIDCache{}
 
-	if err != nil || resp.Result.Code != 0 || len(resp.Value) == 0 || (proto.Unmarshal(resp.Value, cacheObj) != nil) {
+	if err != nil || resp.Result.Code != errorcode.Success || len(resp.Value) == 0 || (proto.Unmarshal(resp.Value, cacheObj) != nil) {
 		username, err := user.QueryUsernameByUID(ctx, req.Uid)
 		if err != nil {
 			return &pb.GetGroupsByUIDResponse{
-				Result: &pb.Result{Code: 1, Msg: fmt.Sprintf("Database error: %v", err)},
+				Result: &pb.Result{Code: errorcode.GroupUserQueryError, Msg: fmt.Sprintf("User query error: %v", err)},
 			}, nil
 		}
 		// 查询group_user_table获取用户群组
@@ -41,12 +42,12 @@ func (s *server) GetGroupsByUID(ctx context.Context, req *pb.GetGroupsByUIDReque
 		sqlResp, err := gateway.ExecSQL(sqlReq)
 		if err != nil {
 			return &pb.GetGroupsByUIDResponse{
-				Result: &pb.Result{Code: 2, Msg: fmt.Sprintf("Database error: %v", err)},
+				Result: &pb.Result{Code: errorcode.GroupUserDatabaseError, Msg: fmt.Sprintf("Database error: %v", err)},
 			}, nil
 		}
-		if sqlResp.Result.Code != 0 {
+		if sqlResp.Result.Code != errorcode.Success {
 			return &pb.GetGroupsByUIDResponse{
-				Result: &pb.Result{Code: 3, Msg: sqlResp.Result.Msg},
+				Result: &pb.Result{Code: sqlResp.Result.Code, Msg: sqlResp.Result.Msg},
 			}, nil
 		}
 
@@ -70,7 +71,7 @@ func (s *server) GetGroupsByUID(ctx context.Context, req *pb.GetGroupsByUIDReque
 		}
 	}
 	return &pb.GetGroupsByUIDResponse{
-		Result: &pb.Result{Code: 0},
+		Result: &pb.Result{Code: errorcode.Success},
 		Groups: cacheObj.Groups,
 	}, nil
 }
@@ -79,7 +80,7 @@ func (s *server) GetGroupsByUID(ctx context.Context, req *pb.GetGroupsByUIDReque
 func (s *server) GetGroupPublicInfo(ctx context.Context, req *pb.GetGroupPublicInfoRequest) (*pb.GetGroupPublicInfoResponse, error) {
 	resp, err := gateway.ExecRedisBGet(&pb_gtw.RedisGetBytesRequest{DBID: 0, Key: "groupuser:public:" + fmt.Sprintf("%d", req.GroupId)})
 	cacheObj := &pb.GetGroupPublicInfoCache{}
-	if err != nil || resp.Result.Code != 0 || len(resp.Value) == 0 || (proto.Unmarshal(resp.Value, cacheObj) != nil) {
+	if err != nil || resp.Result.Code != errorcode.Success || len(resp.Value) == 0 || (proto.Unmarshal(resp.Value, cacheObj) != nil) {
 		for { // 利用控制流跳出
 			sqlReq := &pb_gtw.SqlRequest{
 				Sql: "SELECT `name`, `create_time` FROM `groups` WHERE groupid = ?",
@@ -92,10 +93,10 @@ func (s *server) GetGroupPublicInfo(ctx context.Context, req *pb.GetGroupPublicI
 			sqlResp, err := gateway.ExecSQL(sqlReq)
 			if err != nil {
 				return &pb.GetGroupPublicInfoResponse{
-					Result: &pb.Result{Code: 1, Msg: fmt.Sprintf("Database error: %v", err)},
+					Result: &pb.Result{Code: errorcode.GroupUserDatabaseError, Msg: fmt.Sprintf("Database error: %v", err)},
 				}, nil
 			}
-			if sqlResp.Result.Code != 0 || len(sqlResp.Data) == 0 {
+			if sqlResp.Result.Code != errorcode.Success || len(sqlResp.Data) == 0 {
 				cacheObj.Id = -1
 				break
 			}
@@ -115,11 +116,11 @@ func (s *server) GetGroupPublicInfo(ctx context.Context, req *pb.GetGroupPublicI
 	}
 	if cacheObj.Id == -1 {
 		return &pb.GetGroupPublicInfoResponse{
-			Result: &pb.Result{Code: 2, Msg: "Group not found"},
+			Result: &pb.Result{Code: errorcode.GroupUserNotFound, Msg: "Group not found"},
 		}, nil
 	}
 	return &pb.GetGroupPublicInfoResponse{
-		Result:    &pb.Result{Code: 0},
+		Result:    &pb.Result{Code: errorcode.Success},
 		Id:        cacheObj.Id,
 		Name:      cacheObj.Name,
 		CreatedAt: cacheObj.CreatedAt,
@@ -159,7 +160,7 @@ func convertProtoToSQLUserType(protoType pb.MemberType) string {
 func (s *server) GetGroupInfo(ctx context.Context, req *pb.GetGroupInfoRequest) (*pb.GetGroupInfoResponse, error) {
 	resp, err := gateway.ExecRedisBGet(&pb_gtw.RedisGetBytesRequest{DBID: 0, Key: "groupuser:info:" + fmt.Sprintf("%d", req.GroupId)})
 	cacheObj := &pb.GetGroupInfoCache{}
-	if err != nil || resp.Result.Code != 0 || len(resp.Value) == 0 || (proto.Unmarshal(resp.Value, cacheObj) != nil) {
+	if err != nil || resp.Result.Code != errorcode.Success || len(resp.Value) == 0 || (proto.Unmarshal(resp.Value, cacheObj) != nil) {
 		for { // 利用控制流跳出
 			sqlReq := &pb_gtw.SqlRequest{
 				Sql: "SELECT `username`, CAST(`type` AS CHAR) FROM `group_user_table` WHERE groupid = ?",
@@ -172,10 +173,10 @@ func (s *server) GetGroupInfo(ctx context.Context, req *pb.GetGroupInfoRequest) 
 			sqlResp, err := gateway.ExecSQL(sqlReq)
 			if err != nil {
 				return &pb.GetGroupInfoResponse{
-					Result: &pb.Result{Code: 1, Msg: fmt.Sprintf("Database error: %v", err)},
+					Result: &pb.Result{Code: errorcode.GroupUserDatabaseError, Msg: fmt.Sprintf("Database error: %v", err)},
 				}, nil
 			}
-			if sqlResp.Result.Code != 0 || len(sqlResp.Data) == 0 {
+			if sqlResp.Result.Code != errorcode.Success || len(sqlResp.Data) == 0 {
 				break
 			}
 
@@ -196,7 +197,7 @@ func (s *server) GetGroupInfo(ctx context.Context, req *pb.GetGroupInfoRequest) 
 	}
 	if len(cacheObj.Members) == 0 {
 		return &pb.GetGroupInfoResponse{
-			Result: &pb.Result{Code: 2, Msg: "Group not found"},
+			Result: &pb.Result{Code: errorcode.GroupUserNotFound, Msg: "Group not found"},
 		}, nil
 	}
 
@@ -204,7 +205,7 @@ func (s *server) GetGroupInfo(ctx context.Context, req *pb.GetGroupInfoRequest) 
 	username, err := user.QueryUsernameByUID(ctx, req.Uid)
 	if err != nil {
 		return &pb.GetGroupInfoResponse{
-			Result: &pb.Result{Code: 4, Msg: fmt.Sprintf("User query error: %v", err)},
+			Result: &pb.Result{Code: errorcode.GroupUserQueryError, Msg: fmt.Sprintf("User query error: %v", err)},
 		}, nil
 	}
 
@@ -217,11 +218,11 @@ func (s *server) GetGroupInfo(ctx context.Context, req *pb.GetGroupInfoRequest) 
 	}
 	if !found {
 		return &pb.GetGroupInfoResponse{
-			Result: &pb.Result{Code: 3, Msg: "Permission denied"},
+			Result: &pb.Result{Code: errorcode.GroupUserPermissionDenied, Msg: "Permission denied"},
 		}, nil
 	}
 	return &pb.GetGroupInfoResponse{
-		Result:  &pb.Result{Code: 0},
+		Result:  &pb.Result{Code: errorcode.Success},
 		Members: cacheObj.Members,
 	}, nil
 }
@@ -231,7 +232,7 @@ func (s *server) JoinGroup(ctx context.Context, req *pb.JoinGroupRequest) (*pb.J
 	// 验证群组密码
 	resp, err := gateway.ExecRedisGet(&pb_gtw.RedisGetStringRequest{DBID: 0, Key: "groupuser:password:" + fmt.Sprintf("%d", req.GroupId)})
 	storedPasswordHash := ""
-	if err != nil || resp.Result.Code != 0 || len(resp.Value) == 0 || resp.Value != req.Password {
+	if err != nil || resp.Result.Code != errorcode.Success || len(resp.Value) == 0 || resp.Value != req.Password {
 		sqlReq := &pb_gtw.SqlRequest{
 			Sql: "SELECT `password` FROM `groups` WHERE groupid = ?",
 			Db:  pb_gtw.SqlDatabases_Groups,
@@ -243,19 +244,19 @@ func (s *server) JoinGroup(ctx context.Context, req *pb.JoinGroupRequest) (*pb.J
 		sqlResp, err := gateway.ExecSQL(sqlReq)
 		if err != nil {
 			return &pb.JoinGroupResponse{
-				Result: &pb.Result{Code: 1, Msg: fmt.Sprintf("Database error: %v", err)},
+				Result: &pb.Result{Code: errorcode.GroupUserDatabaseError, Msg: fmt.Sprintf("Database error: %v", err)},
 			}, nil
 		}
-		if len(sqlResp.Data) == 0 {
+		if sqlResp.Result.Code != errorcode.Success || len(sqlResp.Data) == 0 {
 			return &pb.JoinGroupResponse{
-				Result: &pb.Result{Code: 2, Msg: "Group not found"},
+				Result: &pb.Result{Code: errorcode.GroupUserNotFound, Msg: "Group not found"},
 			}, nil
 		}
 
 		storedPasswordHash = sqlResp.Data[0].Result[0].GetStr()
 		if storedPasswordHash == "" {
 			return &pb.JoinGroupResponse{
-				Result: &pb.Result{Code: 2, Msg: "Group not found"},
+				Result: &pb.Result{Code: errorcode.GroupUserNotFound, Msg: "Group not found"},
 			}, nil
 		}
 		go gateway.ExecRedisSet(&pb_gtw.RedisSetStringRequest{DBID: 0, Key: "groupuser:password:" + fmt.Sprintf("%d", req.GroupId), Value: storedPasswordHash})
@@ -265,14 +266,14 @@ func (s *server) JoinGroup(ctx context.Context, req *pb.JoinGroupRequest) (*pb.J
 
 	if storedPasswordHash == "" {
 		return &pb.JoinGroupResponse{
-			Result: &pb.Result{Code: 2, Msg: "Group not found"},
+			Result: &pb.Result{Code: errorcode.GroupUserNotFound, Msg: "Group not found"},
 		}, nil
 	}
 
 	hashedPasswordRequest := sha256.Sum256([]byte(req.Password + config.LatestConfig.Security.PasswordSalt))
 	if hex.EncodeToString(hashedPasswordRequest[:]) != storedPasswordHash {
 		return &pb.JoinGroupResponse{
-			Result: &pb.Result{Code: 3, Msg: "Password incorrect"},
+			Result: &pb.Result{Code: errorcode.GroupUserPasswordIncorrect, Msg: "Password incorrect"},
 		}, nil
 	}
 
@@ -280,17 +281,17 @@ func (s *server) JoinGroup(ctx context.Context, req *pb.JoinGroupRequest) (*pb.J
 	username, err := user.QueryUsernameByUID(ctx, req.Uid)
 	if err != nil {
 		return &pb.JoinGroupResponse{
-			Result: &pb.Result{Code: 4, Msg: fmt.Sprintf("User query error: %v", err)},
+			Result: &pb.Result{Code: errorcode.GroupUserQueryError, Msg: fmt.Sprintf("User query error: %v", err)},
 		}, nil
 	}
 
 	respCache, err := gateway.ExecRedisBGet(&pb_gtw.RedisGetBytesRequest{DBID: 0, Key: "groupuser:info:" + fmt.Sprintf("%d", req.GroupId)})
 	cacheObj := &pb.GetGroupInfoCache{}
-	if !(err != nil || resp.Result.Code != 0 || len(resp.Value) == 0 || (proto.Unmarshal(respCache.Value, cacheObj) != nil)) {
+	if !(err != nil || resp.Result.Code != errorcode.Success || len(resp.Value) == 0 || (proto.Unmarshal(respCache.Value, cacheObj) != nil)) {
 		for _, element := range cacheObj.Members {
 			if element.Name == username {
 				return &pb.JoinGroupResponse{
-					Result: &pb.Result{Code: 5, Msg: "User already in group"},
+					Result: &pb.Result{Code: errorcode.GroupUserAlreadyInGroup, Msg: "User already in group"},
 				}, nil
 			}
 		}
@@ -311,25 +312,25 @@ func (s *server) JoinGroup(ctx context.Context, req *pb.JoinGroupRequest) (*pb.J
 
 	if err != nil {
 		return &pb.JoinGroupResponse{
-			Result: &pb.Result{Code: 6, Msg: fmt.Sprintf("Insert error: %v", err)}}, nil
+			Result: &pb.Result{Code: errorcode.GroupUserDatabaseError, Msg: fmt.Sprintf("Insert error: %v", err)}}, nil
 	}
 
-	if insertResp.Result.Code != 0 {
+	if insertResp.Result.Code != errorcode.Success {
 		return &pb.JoinGroupResponse{
-			Result: &pb.Result{Code: 7, Msg: insertResp.Result.Msg},
+			Result: &pb.Result{Code: insertResp.Result.Code, Msg: insertResp.Result.Msg},
 		}, nil
 	}
 
 	if insertResp.RowsAffected == 0 {
 		return &pb.JoinGroupResponse{
-			Result: &pb.Result{Code: 5, Msg: "User already in group"},
+			Result: &pb.Result{Code: errorcode.GroupUserAlreadyInGroup, Msg: "User already in group"},
 		}, nil
 	}
 
 	go gateway.ExecRedisDel(&pb_gtw.RedisDelRequest{DBID: 0, Key: "groupuser:groups:" + fmt.Sprintf("%d", req.Uid)})
 	go gateway.ExecRedisDel(&pb_gtw.RedisDelRequest{DBID: 0, Key: "groupuser:info:" + fmt.Sprintf("%d", req.GroupId)})
 	return &pb.JoinGroupResponse{
-		Result: &pb.Result{Code: 0, Msg: ""},
+		Result: &pb.Result{Code: errorcode.Success, Msg: ""},
 	}, nil
 }
 
@@ -338,19 +339,19 @@ func (s *server) InviteGroup(ctx context.Context, req *pb.InviteGroupRequest) (*
 	username, err := user.QueryUsernameByUID(ctx, req.Uid)
 	if err != nil {
 		return &pb.InviteGroupResponse{
-			Result: &pb.Result{Code: 1, Msg: fmt.Sprintf("User query error: %v", err)},
+			Result: &pb.Result{Code: errorcode.GroupUserQueryError, Msg: fmt.Sprintf("User query error: %v", err)},
 		}, nil
 	}
 
 	if !user.QueryHasUsername(ctx, req.Username) {
 		return &pb.InviteGroupResponse{
-			Result: &pb.Result{Code: 2, Msg: "User not found"},
+			Result: &pb.Result{Code: errorcode.GroupUserNotFound, Msg: "User not found"},
 		}, nil
 	}
 
 	resp, err := gateway.ExecRedisBGet(&pb_gtw.RedisGetBytesRequest{DBID: 0, Key: "groupuser:info:" + fmt.Sprintf("%d", req.GroupId)})
 	cacheObj := &pb.GetGroupInfoCache{}
-	if err != nil || resp.Result.Code != 0 || len(resp.Value) == 0 || (proto.Unmarshal(resp.Value, cacheObj) != nil) {
+	if err != nil || resp.Result.Code != errorcode.Success || len(resp.Value) == 0 || (proto.Unmarshal(resp.Value, cacheObj) != nil) {
 		for { // 利用控制流跳出
 			sqlReq := &pb_gtw.SqlRequest{
 				Sql: "SELECT `username`, CAST(`type` AS CHAR) FROM `group_user_table` WHERE groupid = ?",
@@ -363,10 +364,10 @@ func (s *server) InviteGroup(ctx context.Context, req *pb.InviteGroupRequest) (*
 			sqlResp, err := gateway.ExecSQL(sqlReq)
 			if err != nil {
 				return &pb.InviteGroupResponse{
-					Result: &pb.Result{Code: 1, Msg: fmt.Sprintf("Database error: %v", err)},
+					Result: &pb.Result{Code: errorcode.GroupUserDatabaseError, Msg: fmt.Sprintf("Database error: %v", err)},
 				}, nil
 			}
-			if sqlResp.Result.Code != 0 || len(sqlResp.Data) == 0 {
+			if sqlResp.Result.Code != errorcode.Success || len(sqlResp.Data) == 0 {
 				break
 			}
 
@@ -387,7 +388,7 @@ func (s *server) InviteGroup(ctx context.Context, req *pb.InviteGroupRequest) (*
 	}
 	if len(cacheObj.Members) == 0 {
 		return &pb.InviteGroupResponse{
-			Result: &pb.Result{Code: 2, Msg: "Group not found"},
+			Result: &pb.Result{Code: errorcode.GroupUserNotFound, Msg: "Group not found"},
 		}, nil
 	}
 	found := false
@@ -397,13 +398,13 @@ func (s *server) InviteGroup(ctx context.Context, req *pb.InviteGroupRequest) (*
 			found = true
 		case req.Username:
 			return &pb.InviteGroupResponse{
-				Result: &pb.Result{Code: 5, Msg: "User already in group"},
+				Result: &pb.Result{Code: errorcode.GroupUserAlreadyInGroup, Msg: "User already in group"},
 			}, nil
 		}
 	}
 	if !found {
 		return &pb.InviteGroupResponse{
-			Result: &pb.Result{Code: 3, Msg: "Permission denied"},
+			Result: &pb.Result{Code: errorcode.GroupUserPermissionDenied, Msg: "Permission denied"},
 		}, nil
 	}
 
@@ -421,12 +422,12 @@ func (s *server) InviteGroup(ctx context.Context, req *pb.InviteGroupRequest) (*
 
 	if err != nil {
 		return &pb.InviteGroupResponse{
-			Result: &pb.Result{Code: 4, Msg: fmt.Sprintf("Insert error: %v", err)}}, nil
+			Result: &pb.Result{Code: errorcode.GroupUserDatabaseError, Msg: fmt.Sprintf("Insert error: %v", err)}}, nil
 	}
 
-	if insertResp.Result.Code != 0 {
+	if insertResp.Result.Code != errorcode.Success {
 		return &pb.InviteGroupResponse{
-			Result: &pb.Result{Code: 5, Msg: insertResp.Result.Msg},
+			Result: &pb.Result{Code: insertResp.Result.Code, Msg: insertResp.Result.Msg},
 		}, nil
 	}
 	go func() {
@@ -438,7 +439,7 @@ func (s *server) InviteGroup(ctx context.Context, req *pb.InviteGroupRequest) (*
 	}()
 	go gateway.ExecRedisDel(&pb_gtw.RedisDelRequest{DBID: 0, Key: "groupuser:info:" + fmt.Sprintf("%d", req.GroupId)})
 	return &pb.InviteGroupResponse{
-		Result: &pb.Result{Code: 0, Msg: ""},
+		Result: &pb.Result{Code: errorcode.Success, Msg: ""},
 	}, nil
 }
 
@@ -448,7 +449,7 @@ func (s *server) CreateGroup(ctx context.Context, req *pb.CreateGroupRequest) (*
 	username, err := user.QueryUsernameByUID(ctx, req.Uid)
 	if err != nil {
 		return &pb.CreateGroupResponse{
-			Result: &pb.Result{Code: 4, Msg: fmt.Sprintf("User query error: %v", err)},
+			Result: &pb.Result{Code: errorcode.GroupUserQueryError, Msg: fmt.Sprintf("User query error: %v", err)},
 		}, nil
 	}
 	hashedPasswordRequest := sha256.Sum256([]byte("" + config.LatestConfig.Security.PasswordSalt))
@@ -468,13 +469,13 @@ func (s *server) CreateGroup(ctx context.Context, req *pb.CreateGroupRequest) (*
 
 	if err != nil {
 		return &pb.CreateGroupResponse{
-			Result: &pb.Result{Code: 1, Msg: fmt.Sprintf("Insert error: %v", err)},
+			Result: &pb.Result{Code: errorcode.GroupUserDatabaseError, Msg: fmt.Sprintf("Insert error: %v", err)},
 		}, nil
 	}
 
-	if insertResp.Result.Code != 0 {
+	if insertResp.Result.Code != errorcode.Success {
 		return &pb.CreateGroupResponse{
-			Result: &pb.Result{Code: 2, Msg: insertResp.Result.Msg},
+			Result: &pb.Result{Code: insertResp.Result.Code, Msg: insertResp.Result.Msg},
 		}, nil
 	}
 
@@ -489,7 +490,7 @@ func (s *server) CreateGroup(ctx context.Context, req *pb.CreateGroupRequest) (*
 	}
 
 	respInst, err := gateway.ExecSQL(insertReq2)
-	if err != nil || respInst.Result.Code != 0 {
+	if err != nil || respInst.Result.Code != errorcode.Success {
 		go func() {
 			gateway.ExecSQL(&pb_gtw.SqlRequest{
 				Sql:    "DELETE FROM `groups` WHERE `id` = ?",
@@ -501,14 +502,14 @@ func (s *server) CreateGroup(ctx context.Context, req *pb.CreateGroupRequest) (*
 			})
 		}()
 		return &pb.CreateGroupResponse{
-			Result: &pb.Result{Code: 3, Msg: fmt.Sprintf("Insert error: %v", err)},
+			Result: &pb.Result{Code: errorcode.GroupUserDatabaseError, Msg: fmt.Sprintf("Insert error: %v", err)},
 		}, nil
 	}
 
 	go gateway.ExecRedisDel(&pb_gtw.RedisDelRequest{DBID: 0, Key: "groupuser:groups:" + fmt.Sprintf("%d", req.Uid)})
 
 	return &pb.CreateGroupResponse{
-		Result:  &pb.Result{Code: 0, Msg: ""},
+		Result:  &pb.Result{Code: errorcode.Success, Msg: ""},
 		GroupId: int32(insertResp.LastInsertId),
 	}, nil
 }
@@ -518,13 +519,13 @@ func (s *server) SetUserType(ctx context.Context, req *pb.SetUserTypeRequest) (*
 	username, err := user.QueryUsernameByUID(ctx, req.Uid)
 	if err != nil {
 		return &pb.SetUserTypeResponse{
-			Result: &pb.Result{Code: 1, Msg: fmt.Sprintf("User query error: %v", err)},
+			Result: &pb.Result{Code: errorcode.GroupUserQueryError, Msg: fmt.Sprintf("User query error: %v", err)},
 		}, nil
 	}
 
 	resp, err := gateway.ExecRedisBGet(&pb_gtw.RedisGetBytesRequest{DBID: 0, Key: "groupuser:info:" + fmt.Sprintf("%d", req.GroupId)})
 	cacheObj := &pb.GetGroupInfoCache{}
-	if err != nil || resp.Result.Code != 0 || len(resp.Value) == 0 || (proto.Unmarshal(resp.Value, cacheObj) != nil) {
+	if err != nil || resp.Result.Code != errorcode.Success || len(resp.Value) == 0 || (proto.Unmarshal(resp.Value, cacheObj) != nil) {
 		for { // 利用控制流跳出
 			sqlReq := &pb_gtw.SqlRequest{
 				Sql: "SELECT `username`, CAST(`type` AS CHAR) FROM `group_user_table` WHERE groupid = ?",
@@ -537,10 +538,10 @@ func (s *server) SetUserType(ctx context.Context, req *pb.SetUserTypeRequest) (*
 			sqlResp, err := gateway.ExecSQL(sqlReq)
 			if err != nil {
 				return &pb.SetUserTypeResponse{
-					Result: &pb.Result{Code: 1, Msg: fmt.Sprintf("Database error: %v", err)},
+					Result: &pb.Result{Code: errorcode.GroupUserDatabaseError, Msg: fmt.Sprintf("Database error: %v", err)},
 				}, nil
 			}
-			if sqlResp.Result.Code != 0 || len(sqlResp.Data) == 0 {
+			if sqlResp.Result.Code != errorcode.Success || len(sqlResp.Data) == 0 {
 				break
 			}
 
@@ -561,7 +562,7 @@ func (s *server) SetUserType(ctx context.Context, req *pb.SetUserTypeRequest) (*
 	}
 	if len(cacheObj.Members) == 0 {
 		return &pb.SetUserTypeResponse{
-			Result: &pb.Result{Code: 2, Msg: "Group not found"},
+			Result: &pb.Result{Code: errorcode.GroupUserNotFound, Msg: "Group not found"},
 		}, nil
 	}
 	found := false
@@ -572,7 +573,7 @@ func (s *server) SetUserType(ctx context.Context, req *pb.SetUserTypeRequest) (*
 			found = true
 			if element.Type != pb.MemberType_owner {
 				return &pb.SetUserTypeResponse{
-					Result: &pb.Result{Code: 3, Msg: "Permission denied"},
+					Result: &pb.Result{Code: errorcode.GroupUserPermissionDenied, Msg: "Permission denied"},
 				}, nil
 			}
 		case req.Username:
@@ -581,12 +582,12 @@ func (s *server) SetUserType(ctx context.Context, req *pb.SetUserTypeRequest) (*
 	}
 	if !found {
 		return &pb.SetUserTypeResponse{
-			Result: &pb.Result{Code: 3, Msg: "Permission denied"},
+			Result: &pb.Result{Code: errorcode.GroupUserPermissionDenied, Msg: "Permission denied"},
 		}, nil
 	}
 	if !foundDist {
 		return &pb.SetUserTypeResponse{
-			Result: &pb.Result{Code: 4, Msg: "User not found"},
+			Result: &pb.Result{Code: errorcode.GroupUserNotFound, Msg: "User not found"},
 		}, nil
 	}
 
@@ -605,17 +606,17 @@ func (s *server) SetUserType(ctx context.Context, req *pb.SetUserTypeRequest) (*
 
 	if err != nil {
 		return &pb.SetUserTypeResponse{
-			Result: &pb.Result{Code: 4, Msg: fmt.Sprintf("Insert error: %v", err)}}, nil
+			Result: &pb.Result{Code: errorcode.GroupUserDatabaseError, Msg: fmt.Sprintf("Insert error: %v", err)}}, nil
 	}
 
-	if insertResp.Result.Code != 0 {
+	if insertResp.Result.Code != errorcode.Success {
 		return &pb.SetUserTypeResponse{
-			Result: &pb.Result{Code: 5, Msg: insertResp.Result.Msg},
+			Result: &pb.Result{Code: insertResp.Result.Code, Msg: insertResp.Result.Msg},
 		}, nil
 	}
 	go gateway.ExecRedisDel(&pb_gtw.RedisDelRequest{DBID: 0, Key: "groupuser:info:" + fmt.Sprintf("%d", req.GroupId)})
 	return &pb.SetUserTypeResponse{
-		Result: &pb.Result{Code: 0, Msg: ""},
+		Result: &pb.Result{Code: errorcode.Success, Msg: ""},
 	}, nil
 }
 
@@ -624,13 +625,13 @@ func (s *server) ChangeGroupName(ctx context.Context, req *pb.ChangeGroupNameReq
 	username, err := user.QueryUsernameByUID(ctx, req.Uid)
 	if err != nil {
 		return &pb.ChangeGroupNameResponse{
-			Result: &pb.Result{Code: 1, Msg: fmt.Sprintf("User query error: %v", err)},
+			Result: &pb.Result{Code: errorcode.GroupUserQueryError, Msg: fmt.Sprintf("User query error: %v", err)},
 		}, nil
 	}
 
 	resp, err := gateway.ExecRedisBGet(&pb_gtw.RedisGetBytesRequest{DBID: 0, Key: "groupuser:info:" + fmt.Sprintf("%d", req.GroupId)})
 	cacheObj := &pb.GetGroupInfoCache{}
-	if err != nil || resp.Result.Code != 0 || len(resp.Value) == 0 || (proto.Unmarshal(resp.Value, cacheObj) != nil) {
+	if err != nil || resp.Result.Code != errorcode.Success || len(resp.Value) == 0 || (proto.Unmarshal(resp.Value, cacheObj) != nil) {
 		for { // 利用控制流跳出
 			sqlReq := &pb_gtw.SqlRequest{
 				Sql: "SELECT `username`, CAST(`type` AS CHAR) FROM `group_user_table` WHERE groupid = ?",
@@ -643,10 +644,10 @@ func (s *server) ChangeGroupName(ctx context.Context, req *pb.ChangeGroupNameReq
 			sqlResp, err := gateway.ExecSQL(sqlReq)
 			if err != nil {
 				return &pb.ChangeGroupNameResponse{
-					Result: &pb.Result{Code: 1, Msg: fmt.Sprintf("Database error: %v", err)},
+					Result: &pb.Result{Code: errorcode.GroupUserDatabaseError, Msg: fmt.Sprintf("Database error: %v", err)},
 				}, nil
 			}
-			if sqlResp.Result.Code != 0 || len(sqlResp.Data) == 0 {
+			if sqlResp.Result.Code != errorcode.Success || len(sqlResp.Data) == 0 {
 				break
 			}
 
@@ -667,7 +668,7 @@ func (s *server) ChangeGroupName(ctx context.Context, req *pb.ChangeGroupNameReq
 	}
 	if len(cacheObj.Members) == 0 {
 		return &pb.ChangeGroupNameResponse{
-			Result: &pb.Result{Code: 2, Msg: "Group not found"},
+			Result: &pb.Result{Code: errorcode.GroupUserNotFound, Msg: "Group not found"},
 		}, nil
 	}
 	found := false
@@ -676,14 +677,14 @@ func (s *server) ChangeGroupName(ctx context.Context, req *pb.ChangeGroupNameReq
 			found = true
 			if element.Type != pb.MemberType_owner && element.Type != pb.MemberType_manager {
 				return &pb.ChangeGroupNameResponse{
-					Result: &pb.Result{Code: 3, Msg: "Permission denied"},
+					Result: &pb.Result{Code: errorcode.GroupUserPermissionDenied, Msg: "Permission denied"},
 				}, nil
 			}
 		}
 	}
 	if !found {
 		return &pb.ChangeGroupNameResponse{
-			Result: &pb.Result{Code: 3, Msg: "Permission denied"},
+			Result: &pb.Result{Code: errorcode.GroupUserPermissionDenied, Msg: "Permission denied"},
 		}, nil
 	}
 
@@ -701,17 +702,17 @@ func (s *server) ChangeGroupName(ctx context.Context, req *pb.ChangeGroupNameReq
 
 	if err != nil {
 		return &pb.ChangeGroupNameResponse{
-			Result: &pb.Result{Code: 4, Msg: fmt.Sprintf("Insert error: %v", err)}}, nil
+			Result: &pb.Result{Code: errorcode.GroupUserDatabaseError, Msg: fmt.Sprintf("Insert error: %v", err)}}, nil
 	}
 
-	if insertResp.Result.Code != 0 {
+	if insertResp.Result.Code != errorcode.Success {
 		return &pb.ChangeGroupNameResponse{
-			Result: &pb.Result{Code: 5, Msg: insertResp.Result.Msg},
+			Result: &pb.Result{Code: insertResp.Result.Code, Msg: insertResp.Result.Msg},
 		}, nil
 	}
 	go gateway.ExecRedisDel(&pb_gtw.RedisDelRequest{DBID: 0, Key: "groupuser:public:" + fmt.Sprintf("%d", req.GroupId)})
 	return &pb.ChangeGroupNameResponse{
-		Result: &pb.Result{Code: 0, Msg: ""},
+		Result: &pb.Result{Code: errorcode.Success, Msg: ""},
 	}, nil
 }
 
@@ -720,13 +721,13 @@ func (s *server) ChangeGroupPassword(ctx context.Context, req *pb.ChangeGroupPas
 	username, err := user.QueryUsernameByUID(ctx, req.Uid)
 	if err != nil {
 		return &pb.ChangeGroupPasswordResponse{
-			Result: &pb.Result{Code: 1, Msg: fmt.Sprintf("User query error: %v", err)},
+			Result: &pb.Result{Code: errorcode.GroupUserQueryError, Msg: fmt.Sprintf("User query error: %v", err)},
 		}, nil
 	}
 
 	resp, err := gateway.ExecRedisBGet(&pb_gtw.RedisGetBytesRequest{DBID: 0, Key: "groupuser:info:" + fmt.Sprintf("%d", req.GroupId)})
 	cacheObj := &pb.GetGroupInfoCache{}
-	if err != nil || resp.Result.Code != 0 || len(resp.Value) == 0 || (proto.Unmarshal(resp.Value, cacheObj) != nil) {
+	if err != nil || resp.Result.Code != errorcode.Success || len(resp.Value) == 0 || (proto.Unmarshal(resp.Value, cacheObj) != nil) {
 		for { // 利用控制流跳出
 			sqlReq := &pb_gtw.SqlRequest{
 				Sql: "SELECT `username`, CAST(`type` AS CHAR) FROM `group_user_table` WHERE groupid = ?",
@@ -739,10 +740,10 @@ func (s *server) ChangeGroupPassword(ctx context.Context, req *pb.ChangeGroupPas
 			sqlResp, err := gateway.ExecSQL(sqlReq)
 			if err != nil {
 				return &pb.ChangeGroupPasswordResponse{
-					Result: &pb.Result{Code: 1, Msg: fmt.Sprintf("Database error: %v", err)},
+					Result: &pb.Result{Code: errorcode.GroupUserDatabaseError, Msg: fmt.Sprintf("Database error: %v", err)},
 				}, nil
 			}
-			if sqlResp.Result.Code != 0 || len(sqlResp.Data) == 0 {
+			if sqlResp.Result.Code != errorcode.Success || len(sqlResp.Data) == 0 {
 				break
 			}
 
@@ -763,7 +764,7 @@ func (s *server) ChangeGroupPassword(ctx context.Context, req *pb.ChangeGroupPas
 	}
 	if len(cacheObj.Members) == 0 {
 		return &pb.ChangeGroupPasswordResponse{
-			Result: &pb.Result{Code: 2, Msg: "Group not found"},
+			Result: &pb.Result{Code: errorcode.GroupUserNotFound, Msg: "Group not found"},
 		}, nil
 	}
 	found := false
@@ -772,14 +773,14 @@ func (s *server) ChangeGroupPassword(ctx context.Context, req *pb.ChangeGroupPas
 			found = true
 			if element.Type != pb.MemberType_owner && element.Type != pb.MemberType_manager {
 				return &pb.ChangeGroupPasswordResponse{
-					Result: &pb.Result{Code: 3, Msg: "Permission denied"},
+					Result: &pb.Result{Code: errorcode.GroupUserPermissionDenied, Msg: "Permission denied"},
 				}, nil
 			}
 		}
 	}
 	if !found {
 		return &pb.ChangeGroupPasswordResponse{
-			Result: &pb.Result{Code: 3, Msg: "Permission denied"},
+			Result: &pb.Result{Code: errorcode.GroupUserPermissionDenied, Msg: "Permission denied"},
 		}, nil
 	}
 
@@ -798,17 +799,17 @@ func (s *server) ChangeGroupPassword(ctx context.Context, req *pb.ChangeGroupPas
 
 	if err != nil {
 		return &pb.ChangeGroupPasswordResponse{
-			Result: &pb.Result{Code: 4, Msg: fmt.Sprintf("Insert error: %v", err)}}, nil
+			Result: &pb.Result{Code: errorcode.GroupUserDatabaseError, Msg: fmt.Sprintf("Insert error: %v", err)}}, nil
 	}
 
-	if insertResp.Result.Code != 0 {
+	if insertResp.Result.Code != errorcode.Success {
 		return &pb.ChangeGroupPasswordResponse{
-			Result: &pb.Result{Code: 5, Msg: insertResp.Result.Msg},
+			Result: &pb.Result{Code: insertResp.Result.Code, Msg: insertResp.Result.Msg},
 		}, nil
 	}
 	go gateway.ExecRedisDel(&pb_gtw.RedisDelRequest{DBID: 0, Key: "groupuser:public:" + fmt.Sprintf("%d", req.GroupId)})
 	return &pb.ChangeGroupPasswordResponse{
-		Result: &pb.Result{Code: 0, Msg: ""},
+		Result: &pb.Result{Code: errorcode.Success, Msg: ""},
 	}, nil
 }
 
@@ -817,13 +818,13 @@ func (s *server) KickUser(ctx context.Context, req *pb.KickUserRequest) (*pb.Kic
 	username, err := user.QueryUsernameByUID(ctx, req.Uid)
 	if err != nil {
 		return &pb.KickUserResponse{
-			Result: &pb.Result{Code: 1, Msg: fmt.Sprintf("User query error: %v", err)},
+			Result: &pb.Result{Code: errorcode.GroupUserQueryError, Msg: fmt.Sprintf("User query error: %v", err)},
 		}, nil
 	}
 
 	resp, err := gateway.ExecRedisBGet(&pb_gtw.RedisGetBytesRequest{DBID: 0, Key: "groupuser:info:" + fmt.Sprintf("%d", req.GroupId)})
 	cacheObj := &pb.GetGroupInfoCache{}
-	if err != nil || resp.Result.Code != 0 || len(resp.Value) == 0 || (proto.Unmarshal(resp.Value, cacheObj) != nil) {
+	if err != nil || resp.Result.Code != errorcode.Success || len(resp.Value) == 0 || (proto.Unmarshal(resp.Value, cacheObj) != nil) {
 		for { // 利用控制流跳出
 			sqlReq := &pb_gtw.SqlRequest{
 				Sql: "SELECT `username`, CAST(`type` AS CHAR) FROM `group_user_table` WHERE groupid = ?",
@@ -836,10 +837,10 @@ func (s *server) KickUser(ctx context.Context, req *pb.KickUserRequest) (*pb.Kic
 			sqlResp, err := gateway.ExecSQL(sqlReq)
 			if err != nil {
 				return &pb.KickUserResponse{
-					Result: &pb.Result{Code: 1, Msg: fmt.Sprintf("Database error: %v", err)},
+					Result: &pb.Result{Code: errorcode.GroupUserDatabaseError, Msg: fmt.Sprintf("Database error: %v", err)},
 				}, nil
 			}
-			if sqlResp.Result.Code != 0 || len(sqlResp.Data) == 0 {
+			if sqlResp.Result.Code != errorcode.Success || len(sqlResp.Data) == 0 {
 				break
 			}
 
@@ -860,7 +861,7 @@ func (s *server) KickUser(ctx context.Context, req *pb.KickUserRequest) (*pb.Kic
 	}
 	if len(cacheObj.Members) == 0 {
 		return &pb.KickUserResponse{
-			Result: &pb.Result{Code: 2, Msg: "Group not found"},
+			Result: &pb.Result{Code: errorcode.GroupUserNotFound, Msg: "Group not found"},
 		}, nil
 	}
 	found := false
@@ -871,7 +872,7 @@ func (s *server) KickUser(ctx context.Context, req *pb.KickUserRequest) (*pb.Kic
 			found = true
 			if element.Type != pb.MemberType_owner && element.Type != pb.MemberType_manager {
 				return &pb.KickUserResponse{
-					Result: &pb.Result{Code: 3, Msg: "Permission denied"},
+					Result: &pb.Result{Code: errorcode.GroupUserPermissionDenied, Msg: "Permission denied"},
 				}, nil
 			}
 		case req.Username:
@@ -880,12 +881,12 @@ func (s *server) KickUser(ctx context.Context, req *pb.KickUserRequest) (*pb.Kic
 	}
 	if !found {
 		return &pb.KickUserResponse{
-			Result: &pb.Result{Code: 3, Msg: "Permission denied"},
+			Result: &pb.Result{Code: errorcode.GroupUserPermissionDenied, Msg: "Permission denied"},
 		}, nil
 	}
 	if !foundDist {
 		return &pb.KickUserResponse{
-			Result: &pb.Result{Code: 4, Msg: "User not found"},
+			Result: &pb.Result{Code: errorcode.GroupUserNotFound, Msg: "User not found"},
 		}, nil
 	}
 
@@ -903,12 +904,12 @@ func (s *server) KickUser(ctx context.Context, req *pb.KickUserRequest) (*pb.Kic
 
 	if err != nil {
 		return &pb.KickUserResponse{
-			Result: &pb.Result{Code: 4, Msg: fmt.Sprintf("Insert error: %v", err)}}, nil
+			Result: &pb.Result{Code: errorcode.GroupUserDatabaseError, Msg: fmt.Sprintf("Insert error: %v", err)}}, nil
 	}
 
-	if insertResp.Result.Code != 0 {
+	if insertResp.Result.Code != errorcode.Success {
 		return &pb.KickUserResponse{
-			Result: &pb.Result{Code: 5, Msg: insertResp.Result.Msg},
+			Result: &pb.Result{Code: insertResp.Result.Code, Msg: insertResp.Result.Msg},
 		}, nil
 	}
 	go gateway.ExecRedisDel(&pb_gtw.RedisDelRequest{DBID: 0, Key: "groupuser:info:" + fmt.Sprintf("%d", req.GroupId)})
@@ -920,6 +921,6 @@ func (s *server) KickUser(ctx context.Context, req *pb.KickUserRequest) (*pb.Kic
 		gateway.ExecRedisDel(&pb_gtw.RedisDelRequest{DBID: 0, Key: "groupuser:groups:" + fmt.Sprintf("%d", userID)})
 	}()
 	return &pb.KickUserResponse{
-		Result: &pb.Result{Code: 0, Msg: ""},
+		Result: &pb.Result{Code: errorcode.Success, Msg: ""},
 	}, nil
 }

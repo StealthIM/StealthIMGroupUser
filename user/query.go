@@ -3,6 +3,7 @@ package user
 import (
 	pb "StealthIMGroupUser/StealthIM.User"
 	"StealthIMGroupUser/config"
+	"StealthIMGroupUser/errorcode"
 	"context"
 	"fmt"
 	"time"
@@ -23,7 +24,7 @@ func QueryUsernameByUID(ctx context.Context, uid int32) (string, error) {
 	if err2 != nil {
 		return "", err2
 	}
-	if res.Result.Code != 0 {
+	if res.Result.Code != errorcode.Success {
 		return "", fmt.Errorf("[%d]%s", res.Result.Code, res.Result.Msg)
 	}
 	return res.Username, err2
@@ -44,7 +45,7 @@ func QueryHasUsername(ctx context.Context, username string) bool {
 	if err2 != nil {
 		return false
 	}
-	if res.Result.Code != 0 {
+	if res.Result.Code != errorcode.Success {
 		return false
 	}
 	return true
@@ -65,7 +66,7 @@ func QueryUIDByUsername(ctx context.Context, username string) (int32, error) {
 	if err2 != nil {
 		return 0, err2
 	}
-	if res.Result.Code != 0 {
+	if res.Result.Code != errorcode.Success {
 		return 0, fmt.Errorf("[%d]%s", res.Result.Code, res.Result.Msg)
 	}
 	return res.UserId, err2
