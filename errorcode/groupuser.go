@@ -2,7 +2,7 @@ package errorcode
 
 const (
 	// GroupUserInternalError 一般内部错误
-	GroupUserInternalError int32 = 1300 + iota
+	GroupUserInternalError int32 = 1400 + iota
 	// GroupUserDatabaseError 数据库操作错误
 	GroupUserDatabaseError
 	// GroupUserNotFound 群组或用户未找到
