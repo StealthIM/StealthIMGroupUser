@@ -121,14 +121,14 @@ jobs:
         run: |
           sudo pip install pytest pytest-asyncio
           export PATH="$PATH:~/.local/bin:/opt/hostedtoolcache/Python/3.13.5/x64/bin"
-          pip install grpcio
-          pip install grpcio-tools
-          pip install grpclib
-          pip install mypy_protobuf
-          sudo pip install grpcio
-          sudo pip install grpcio-tools
-          sudo pip install grpclib
-          sudo pip install mypy_protobuf
+          pip install grpcio --force-reinstall
+          pip install grpcio-tools --force-reinstall
+          pip install grpclib --force-reinstall
+          pip install mypy_protobuf --force-reinstall
+          sudo pip install grpcio --force-reinstall
+          sudo pip install grpcio-tools --force-reinstall
+          sudo pip install grpclib --force-reinstall
+          sudo pip install mypy_protobuf --force-reinstall
             
           echo -e '#!/usr/bin/python\nfrom grpclib.plugin.main import main\nimport sys\nsys.exit(main())' > /opt/hostedtoolcache/Python/3.13.5/x64/bin/protoc-gen-grpclib_python
           echo -e '#!/usr/bin/python\nfrom mypy_protobuf.main import main\nimport sys\nsys.exit(main())' > /opt/hostedtoolcache/Python/3.13.5/x64/bin/protoc-gen-mypy
