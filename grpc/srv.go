@@ -867,15 +867,15 @@ func (s *server) KickUser(ctx context.Context, req *pb.KickUserRequest) (*pb.Kic
 	found := false
 	foundDist := false
 	for _, element := range cacheObj.Members {
-		switch element.Name {
-		case username:
+		if element.Name == username {
 			found = true
 			if element.Type != pb.MemberType_owner && element.Type != pb.MemberType_manager && req.Username != username {
 				return &pb.KickUserResponse{
 					Result: &pb.Result{Code: errorcode.GroupUserPermissionDenied, Msg: "Permission denied"},
 				}, nil
 			}
-		case req.Username:
+		}
+		if element.Name == req.Username {
 			foundDist = true
 		}
 	}

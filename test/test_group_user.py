@@ -379,73 +379,7 @@ async def test_group_settype(group_user_stub: StealthIMGroupUserStub, user_lst: 
     ))
     assert set_resp.result.code == 800
 
-    info_resp = await group_user_stub.GetGroupInfo(groupuser_pb2.GetGroupInfoRequest(
-        group_id=group_id,
-        uid=user_lst[0]
-    ))
-    assert info_resp.result.code == 800
-    assert (username_perfix+"_acc1",
-            groupuser_pb2.MemberType.owner) in [(m.name, m.type) for m in info_resp.members]
-    assert (username_perfix+"_acc2",
-            groupuser_pb2.MemberType.manager) in [(m.name, m.type) for m in info_resp.members]
-    assert (username_perfix+"_acc3",
-            groupuser_pb2.MemberType.member) in [(m.name, m.type) for m in info_resp.members]
-
-
-@pytest.mark.asyncio
-async def test_group_settype(group_user_stub: StealthIMGroupUserStub, user_lst: list):
-    # 创建群组
-    create_resp = await group_user_stub.CreateGroup(groupuser_pb2.CreateGroupRequest(
-        name="grp6",
-        uid=user_lst[0]
-    ))
-    assert create_resp.result.code == 800
-    group_id = create_resp.group_id
-
-    join_resp = await group_user_stub.InviteGroup(groupuser_pb2.InviteGroupRequest(
-        group_id=group_id,
-        uid=user_lst[0],
-        username=username_perfix+"_acc2"
-    ))
-    assert join_resp.result.code == 800
-
-    join_resp = await group_user_stub.InviteGroup(groupuser_pb2.InviteGroupRequest(
-        group_id=group_id,
-        uid=user_lst[0],
-        username=username_perfix+"_acc3"
-    ))
-    assert join_resp.result.code == 800
-
-    set_resp = await group_user_stub.SetUserType(groupuser_pb2.SetUserTypeRequest(
-        group_id=group_id,
-        uid=user_lst[0],
-        username="fake_username",
-        type=groupuser_pb2.MemberType.manager,
-    ))
-    assert set_resp.result.code != 800
-
-    set_resp = await group_user_stub.SetUserType(groupuser_pb2.SetUserTypeRequest(
-        group_id=group_id,
-        uid=user_lst[1],
-        username=username_perfix+"_acc2",
-        type=groupuser_pb2.MemberType.manager,
-    ))
-    assert set_resp.result.code != 800
-
-    set_resp = await group_user_stub.SetUserType(groupuser_pb2.SetUserTypeRequest(
-        group_id=group_id,
-        uid=user_lst[0],
-        username=username_perfix+"_acc4",
-        type=groupuser_pb2.MemberType.manager,
-    ))
-    assert set_resp.result.code != 800
-    set_resp = await group_user_stub.SetUserType(groupuser_pb2.SetUserTypeRequest(
-        group_id=group_id,
-        uid=user_lst[0],
-        username=username_perfix+"_acc2",
-        type=groupuser_pb2.MemberType.manager,
-    ))
-    assert set_resp.result.code == 800
+    await asyncio.sleep(3)
 
     info_resp = await group_user_stub.GetGroupInfo(groupuser_pb2.GetGroupInfoRequest(
         group_id=group_id,
@@ -626,12 +560,12 @@ async def test_group_kickuser(group_user_stub: StealthIMGroupUserStub, user_lst:
     assert (username_perfix+"_acc3",
             groupuser_pb2.MemberType.member) in [(m.name, m.type) for m in info_resp.members]
 
-    kick_resp = await group_user_stub.KickUser(groupuser_pb2.KickUserRequest(
-        group_id=group_id,
-        uid=user_lst[2],
-        username=username_perfix+"_acc3"
-    ))
-    assert kick_resp.result.code != 800
+    # kick_resp = await group_user_stub.KickUser(groupuser_pb2.KickUserRequest(
+    #     group_id=group_id,
+    #     uid=user_lst[2],
+    #     username=username_perfix+"_acc3"
+    # ))
+    # assert kick_resp.result.code != 800
 
     kick_resp = await group_user_stub.KickUser(groupuser_pb2.KickUserRequest(
         group_id=group_id,
@@ -678,3 +612,88 @@ async def test_group_kickuser(group_user_stub: StealthIMGroupUserStub, user_lst:
     ))
     assert grps_resp.result.code == 800
     assert len(grps_resp.groups) == x-1
+
+
+@pytest.mark.asyncio
+async def test_group_leave(group_user_stub: StealthIMGroupUserStub, user_lst: list):
+    # 创建群组
+    create_resp = await group_user_stub.CreateGroup(groupuser_pb2.CreateGroupRequest(
+        name="grp10",
+        uid=user_lst[0]
+    ))
+    assert create_resp.result.code == 800
+    group_id = create_resp.group_id
+    await asyncio.sleep(1)
+
+    join_resp = await group_user_stub.InviteGroup(groupuser_pb2.InviteGroupRequest(
+        group_id=group_id,
+        uid=user_lst[0],
+        username=username_perfix+"_acc2"
+    ))
+    assert join_resp.result.code == 800
+
+    join_resp = await group_user_stub.InviteGroup(groupuser_pb2.InviteGroupRequest(
+        group_id=group_id,
+        uid=user_lst[0],
+        username=username_perfix+"_acc3"
+    ))
+    assert join_resp.result.code == 800
+
+    set_resp = await group_user_stub.SetUserType(groupuser_pb2.SetUserTypeRequest(
+        group_id=group_id,
+        uid=user_lst[0],
+        username=username_perfix+"_acc2",
+        type=groupuser_pb2.MemberType.manager,
+    ))
+    assert set_resp.result.code == 800
+
+    info_resp = await group_user_stub.GetGroupInfo(groupuser_pb2.GetGroupInfoRequest(
+        group_id=group_id,
+        uid=user_lst[0]
+    ))
+    assert info_resp.result.code == 800
+    assert (username_perfix+"_acc1",
+            groupuser_pb2.MemberType.owner) in [(m.name, m.type) for m in info_resp.members]
+    assert (username_perfix+"_acc2",
+            groupuser_pb2.MemberType.manager) in [(m.name, m.type) for m in info_resp.members]
+    assert (username_perfix+"_acc3",
+            groupuser_pb2.MemberType.member) in [(m.name, m.type) for m in info_resp.members]
+
+    # kick_resp = await group_user_stub.KickUser(groupuser_pb2.KickUserRequest(
+    #     group_id=group_id,
+    #     uid=user_lst[0],
+    #     username=username_perfix+"_acc1"
+    # ))
+    # assert kick_resp.result.code == 800
+
+    kick_resp = await group_user_stub.KickUser(groupuser_pb2.KickUserRequest(
+        group_id=group_id,
+        uid=user_lst[1],
+        username=username_perfix+"_acc2"
+    ))
+    assert kick_resp.result.code == 800
+
+    kick_resp = await group_user_stub.KickUser(groupuser_pb2.KickUserRequest(
+        group_id=group_id,
+        uid=user_lst[2],
+        username=username_perfix+"_acc3"
+    ))
+    assert kick_resp.result.code == 800
+
+    info_resp = await group_user_stub.GetGroupInfo(groupuser_pb2.GetGroupInfoRequest(
+        group_id=group_id,
+        uid=user_lst[0]
+    ))
+    assert info_resp.result.code == 800
+    assert (username_perfix+"_acc1",
+            groupuser_pb2.MemberType.owner) in [(m.name, m.type) for m in info_resp.members]
+    assert (username_perfix+"_acc2",
+            groupuser_pb2.MemberType.manager) not in [(m.name, m.type) for m in info_resp.members]
+    assert (username_perfix+"_acc3",
+            groupuser_pb2.MemberType.member) not in [(m.name, m.type) for m in info_resp.members]
+    kick_resp = await group_user_stub.KickUser(groupuser_pb2.KickUserRequest(
+        group_id=group_id,
+        uid=user_lst[0],
+        username=username_perfix+"_acc1"
+    ))
+    assert kick_resp.result.code == 800
