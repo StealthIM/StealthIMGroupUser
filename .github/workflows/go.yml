@@ -119,7 +119,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo pip install pytest pytest-asyncio
+          /opt/hostedtoolcache/Python/3.13.5/x64/bin/pip install pytest pytest-asyncio --force-reinstall --ignore-installed
           export PATH="$PATH:~/.local/bin:/opt/hostedtoolcache/Python/3.13.5/x64/bin"
           /opt/hostedtoolcache/Python/3.13.5/x64/bin/pip install grpcio --force-reinstall --ignore-installed
           /opt/hostedtoolcache/Python/3.13.5/x64/bin/pip install grpcio-tools --force-reinstall --ignore-installed
