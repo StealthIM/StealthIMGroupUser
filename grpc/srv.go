@@ -870,7 +870,7 @@ func (s *server) KickUser(ctx context.Context, req *pb.KickUserRequest) (*pb.Kic
 		switch element.Name {
 		case username:
 			found = true
-			if element.Type != pb.MemberType_owner && element.Type != pb.MemberType_manager {
+			if element.Type != pb.MemberType_owner && element.Type != pb.MemberType_manager && req.Username != username {
 				return &pb.KickUserResponse{
 					Result: &pb.Result{Code: errorcode.GroupUserPermissionDenied, Msg: "Permission denied"},
 				}, nil
@@ -891,7 +891,7 @@ func (s *server) KickUser(ctx context.Context, req *pb.KickUserRequest) (*pb.Kic
 	}
 
 	insertReq := &pb_gtw.SqlRequest{
-		Sql:    "DELETE FROM `group_user_table`  WHERE `groupid` = ? AND `username` = ?",
+		Sql:    "DELETE FROM `group_user_table` WHERE `groupid` = ? AND `username` = ?",
 		Db:     pb_gtw.SqlDatabases_Groups,
 		Commit: true,
 		Params: []*pb_gtw.InterFaceType{
