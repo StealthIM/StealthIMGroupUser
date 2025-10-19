@@ -136,13 +136,13 @@ jobs:
       - name: Build proto
         run: |
           source venv/bin/activate
-          sudo make debug_proto
+          make debug_proto
 
       - name: Run Test
         run: |
           source venv/bin/activate
           cd test
-          sudo bash ./run.sh
+          bash ./run.sh
 
   upload-package:
     runs-on: ubuntu-latest
