@@ -133,7 +133,7 @@ jobs:
 
       - name: Build proto
         run: |
-          export PATH="$PATH:~/.local/bin:/opt/hostedtoolcache/Python/3.13.3/x64/bin"
+          export PATH="$PATH:~/.local/bin:/opt/hostedtoolcache/Python/3.13.5/x64/bin"
           sudo make debug_proto
 
       - name: Run Test
