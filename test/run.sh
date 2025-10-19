@@ -122,7 +122,7 @@ sleep 3s
 echo "Start GroupUser"
 cd ${NOWPWD}/test_cache/groupuser && ./StealthIMGroupUser --config=${NOWPWD}/test_cache/groupuser/config.toml > ${NOWPWD}/test_cache/groupuser.log 2>&1 &
 
-sleep 5s
+sleep 15s
 echo "Start Test"
 echo "::group::Test Log"
 (pytest test_group_user.py -v; echo "$?">${NOWPWD}/test_cache/.ret) | tee ${NOWPWD}/test_cache/test.log
@@ -142,11 +142,11 @@ echo "::group::Session Log"
 cat ${NOWPWD}/test_cache/session.log
 echo "::endgroup::"
 
-echo "::group::GroupUser Log"
+echo "::group::User Log"
 cat ${NOWPWD}/test_cache/user.log
 echo "::endgroup::"
 
-echo "::group::User Log"
+echo "::group::GroupUser Log"
 cat ${NOWPWD}/test_cache/groupuser.log
 echo "::endgroup::"
 
